@@ -49,3 +49,21 @@ func (s* JsonStorage) Load() ([]model.Todo, error){
 	}
 	return todos, nil
 }
+//mutex for making sure only one goroutine can write to the file at a time, more or less for thread safety while saving and in the above i used mutex cause assume what if some goroutine is writing while one is reading then thats a problem and remember never copy mutex always reference it
+func (s* JsonStorage) Save(todos []model.Todo) error{
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	data, err:= json.MarshalIndent(todos, "", "  ")
+	if err!=nil{
+		return fmt.Errorf("failed to marshal data: %w", err)
+	}
+	tmpPath:= s.path + ".tmp"
+	if err:= os.WriteFile(tmpPath, data,0644); err!=nil{
+		return fmt.Errorf("failed to write temp file: %w", err)
+	}
+	if err:= os.Rename(tmpPath, s.path); err!=nil{
+		_= os.Remove(tmpPath)
+		return fmt.Errorf("failed to rename temp file: %w", err)
+	}
+	return nil
+}
