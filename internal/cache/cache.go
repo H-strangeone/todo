@@ -3,7 +3,6 @@ package cache
 import (
 	"fmt"
 	"sync"
-
 	"github.com/H-strangeone/todo/internal/model"
 	"github.com/H-strangeone/todo/internal/storage"
 )

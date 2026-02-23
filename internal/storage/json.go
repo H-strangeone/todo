@@ -13,19 +13,19 @@ type Storage interface{
 	Save([]model.Todo) error
 }
 
-type JsonStorage struct{
+type JSONStorage struct{
 	path string
 	mu sync.Mutex
 }
 
-func New(path string) (*JsonStorage, error){
+func New(path string) (*JSONStorage, error){
 	dir:= filepath.Dir(path)
 	if err:= os.MkdirAll(dir,0755); err!=nil{
 		return nil, fmt.Errorf("failed to create directory: %w", err)
 	}
-	return &JsonStorage{path: path}, nil
+	return &JSONStorage{path: path}, nil
 }
-func (s* JsonStorage) Load() ([]model.Todo, error){
+func (s* JSONStorage) Load() ([]model.Todo, error){
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	data, err:= os.ReadFile(s.path)
@@ -50,7 +50,7 @@ func (s* JsonStorage) Load() ([]model.Todo, error){
 	return todos, nil
 }
 //mutex for making sure only one goroutine can write to the file at a time, more or less for thread safety while saving and in the above i used mutex cause assume what if some goroutine is writing while one is reading then thats a problem and remember never copy mutex always reference it
-func (s* JsonStorage) Save(todos []model.Todo) error{
+func (s* JSONStorage) Save(todos []model.Todo) error{
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	data, err:= json.MarshalIndent(todos, "", "  ")
@@ -66,4 +66,12 @@ func (s* JsonStorage) Save(todos []model.Todo) error{
 		return fmt.Errorf("failed to rename temp file: %w", err)
 	}
 	return nil
+}
+func DefaultPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve home directory: %w", err)
+	}
+
+	return filepath.Join(home, ".todo", "todos.json"), nil
 }

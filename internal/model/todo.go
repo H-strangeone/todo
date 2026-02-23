@@ -7,7 +7,31 @@ import (
 )
 
 type NotifyType int
+type DurationSlice []time.Duration
 
+func (ds DurationSlice) MarshalJSON() ([]byte, error) {
+	strings := make([]string, len(ds))
+	for i, d := range ds {
+		strings[i] = d.String()
+	}
+	return json.Marshal(strings)
+}
+
+func (ds *DurationSlice) UnmarshalJSON(data []byte) error {
+	var strings []string
+	if err := json.Unmarshal(data, &strings); err != nil {
+		return err
+	}
+	*ds = make(DurationSlice, 0, len(strings))
+	for _, s := range strings {
+		d, err := time.ParseDuration(s)
+		if err != nil {
+			return fmt.Errorf("invalid duration %q: %w", s, err)
+		}
+		*ds = append(*ds, d)
+	}
+	return nil
+}
 const(
 	NotifySystem NotifyType = iota
 	NotifyEmail
@@ -21,7 +45,7 @@ type Todo struct{
 	CreatedAt time.Time	`json:"created_at"`	
 	CompletedAt *time.Time	`json:"completed_at,omitempty"`
 	DueAt time.Time `json:"due_at"`
-	Reminders []time.Duration `json:"reminders,omitempty"`
+	Reminders DurationSlice `json:"reminders,omitempty"`
 	Notify NotifyType	`json:"notify"`
 }
 func(nt NotifyType) String() string{
@@ -48,11 +72,11 @@ func(nt *NotifyType) UnmarshalJSON(data []byte) error{
 		return err
 	}
 	switch s {
-	case "system":
+	case "System":
 		*nt = NotifySystem
-	case "email":
+	case "Email":
 		*nt = NotifyEmail
-	case "both":
+	case "Both":
 		*nt = NotifyBoth
 	default:
 		return fmt.Errorf("invalid NotifyType: %s", s)
@@ -79,24 +103,24 @@ func(t *Todo) Validate() error{
 	if t.Title == ""{
 		return fmt.Errorf("title cannot be empty")
 	}
-	if t.DueAt.Before(time.Now()){
-		return fmt.Errorf("due date cannot be in the past")
-	}
+	// if t.DueAt.Before(time.Now()){
+	// 	return fmt.Errorf("due date cannot be in the past")
+	// }
 	if t.DueAt.IsZero(){
 		return fmt.Errorf("due date is required")
 	}
 	if t.CreatedAt.IsZero(){
 	return fmt.Errorf("created_at is required")
 	}
-	if t.DueAt.Before(t.CreatedAt){
-		return fmt.Errorf("due date cannot be before created_at")
+	if !t.DueAt.After(t.CreatedAt){
+		return fmt.Errorf("due date cannot be after created_at")
 	}
-	for i, r := range t.Reminders{
-		if r <= 0{
-			return fmt.Errorf("reminder %d must be a positive duration", i)
+	for i, r := range t.Reminders {
+		if r < 0 {
+			return fmt.Errorf("reminder %d must be non-negative", i)
 		}
-		if t.DueAt.Add(-r).Before(t.CreatedAt){
-			return fmt.Errorf("reminder %d is before creation time",i)
+		if t.DueAt.Add(-r).Before(t.CreatedAt) {
+			return fmt.Errorf("reminder %d fires before creation time", i)
 		}
 	}
 	return nil
@@ -106,7 +130,7 @@ func NewTodo(title string , dueAt time.Time) *Todo{
 		Title: title,
 		DueAt: dueAt,
 		CreatedAt: time.Now(),
-		Reminders: []time.Duration{},
+		Reminders: DurationSlice{},
 		Notify: NotifySystem,
 		Completed: false,
 	}
