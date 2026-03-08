@@ -6,8 +6,17 @@ import (
 	"github.com/H-strangeone/todo/internal/model"
 )
 
+// ViewMode represents different screens in the TUI
+type ViewMode int
+
+const (
+	ViewList ViewMode = iota
+	ViewAddForm
+	ViewEditForm
+	ViewDeleteConfirm
+)
+
 // Model is the TUI state.
-// NOT to be confused with domain model (model.Todo).
 type Model struct {
 	cache  *cache.Cache
 	todos  []*model.Todo
@@ -15,6 +24,16 @@ type Model struct {
 	width  int
 	height int
 	err    error
+
+	mode ViewMode
+
+	// Form fields (for add/edit)
+	formTitle       string
+	formDescription string
+	formDue         string
+	formReminders   string
+	formNotify      string
+	formFocusIndex  int
 }
 
 // New creates a new TUI model.
@@ -26,6 +45,7 @@ func New(c *cache.Cache) Model {
 		cursor: 0,
 		width:  80,
 		height: 24,
+		mode:   ViewList,
 	}
 }
 
